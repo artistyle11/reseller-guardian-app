@@ -102,7 +102,7 @@ async function submitScan() {
   try {
     const response = await fetch(WEBHOOK_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
         item_photo: photoBase64,
         item_name: item_name,
