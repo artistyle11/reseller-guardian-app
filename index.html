@@ -50,6 +50,14 @@ input:focus { outline: none; border-color: #1a1a2e; background: white; }
   <button class="submit-btn" id="submit-btn" onclick="submitScan()">Search pricing data</button>
   <div class="status" id="status"></div>
 </div>
+<iframe name="hidden-iframe" style="display:none"></iframe>
+<form id="hidden-form" method="POST" target="hidden-iframe" style="display:none">
+  <input type="hidden" name="item_photo" id="form-photo">
+  <input type="hidden" name="item_name" id="form-name">
+  <input type="hidden" name="ask_price" id="form-price">
+  <input type="hidden" name="source_location" id="form-location">
+  <input type="hidden" name="scan_datetime" id="form-datetime">
+</form>
 <script>
 const WEBHOOK_URL = 'https://hook.us2.make.com/v6x8x1t2putuhv3v6duetb95wbhmbsbx';
 let photoBase64 = null;
@@ -59,61 +67,45 @@ function handlePhoto(input) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = function(e) {
-    photoBase64 = e.target.result.split(',')[1];
-    const preview = document.getElementById('preview');
-    preview.src = e.target.result;
-    preview.style.display = 'block';
+    const img = new Image();
+    img.src = e.target.result;
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const max = 800;
+      let w = img.width, h = img.height;
+      if (w > max || h > max) {
+        if (w > h) { h = Math.round(h * max / w); w = max; }
+        else { w = Math.round(w * max / h); h = max; }
+      }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      photoBase64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+      const preview = document.getElementById('preview');
+      preview.src = canvas.toDataURL('image/jpeg', 0.7);
+      preview.style.display = 'block';
+    };
   };
   reader.readAsDataURL(file);
 }
 
-async function submitScan() {
-  const item_name = document.getElementById('item_name').value.trim();
-  const ask_price = document.getElementById('ask_price').value;
-  const source_location = document.getElementById('source_location').value.trim();
+function submitScan() {
   if (!photoBase64) { showStatus('Please take or choose a photo first.', true); return; }
+  const ask_price = document.getElementById('ask_price').value;
   if (!ask_price) { showStatus('Please enter the asking price.', true); return; }
+  document.getElementById('form-photo').value = photoBase64;
+  document.getElementById('form-name').value = document.getElementById('item_name').value;
+  document.getElementById('form-price').value = ask_price;
+  document.getElementById('form-location').value = document.getElementById('source_location').value;
+  document.getElementById('form-datetime').value = new Date().toISOString();
+  const form = document.getElementById('hidden-form');
+  form.action = WEBHOOK_URL;
+  form.submit();
+  showStatus('Scan submitted successfully.');
   const btn = document.getElementById('submit-btn');
-  btn.disabled = true;
-  btn.textContent = 'Scanning...';
-  showStatus('');
-  const img = new Image();
-  img.src = 'data:image/jpeg;base64,' + photoBase64;
-  img.onload = function() {
-    const canvas = document.createElement('canvas');
-    const max = 800;
-    let w = img.width, h = img.height;
-    if (w > max || h > max) {
-      if (w > h) { h = Math.round(h * max / w); w = max; }
-      else { w = Math.round(w * max / h); h = max; }
-    }
-    canvas.width = w; canvas.height = h;
-    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-    const compressed = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
-    fetch(WEBHOOK_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        item_photo: compressed,
-        item_name: item_name,
-        ask_price: parseFloat(ask_price),
-        source_location: source_location,
-        scan_datetime: new Date().toISOString()
-      })
-    }).then(() => {
-      showStatus('Scan submitted successfully.');
-      btn.textContent = 'Scan another item';
-      btn.disabled = false;
-      photoBase64 = null;
-      document.getElementById('preview').style.display = 'none';
-      document.getElementById('file-input').value = '';
-    }).catch(() => {
-      showStatus('Connection error. Check your internet.', true);
-      btn.textContent = 'Search pricing data';
-      btn.disabled = false;
-    });
-  };
+  btn.textContent = 'Scan another item';
+  photoBase64 = null;
+  document.getElementById('preview').style.display = 'none';
+  document.getElementById('file-input').value = '';
 }
 
 function showStatus(msg, isError) {
