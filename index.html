@@ -79,7 +79,7 @@ function handlePhoto(input) {
       }
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      photoBase64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+      photoBase64 = encodeURIComponent(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
       const preview = document.getElementById('preview');
       preview.src = canvas.toDataURL('image/jpeg', 0.7);
       preview.style.display = 'block';
